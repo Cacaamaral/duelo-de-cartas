@@ -84,6 +84,7 @@
   <h1>⚔️ Duelo de Cartas</h1>
   <p id="lobbyTxt" style="color:var(--mut)">Escolha seu nome para entrar na sala.</p>
   <input id="name" maxlength="16" placeholder="Seu nome" autofocus>
+  <label style="display:block;margin:12px 0;color:var(--mut);cursor:pointer"><input type="checkbox" id="spec" style="width:auto;margin-right:6px">👁 Entrar como espectador (só assistir)</label>
   <p><button id="enter">Entrar</button></p>
   <div id="err0" style="color:var(--bad)"></div>
 </div>
@@ -150,7 +151,7 @@ const ghosts = {};        // 'you:1' -> elemento fantasma usado nas animações
 
 function connect() {
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'join', room: roomId, name: $('name').value.trim() || 'Duelista', token: localStorage.getItem(tokenKey) }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'join', room: roomId, name: $('name').value.trim() || 'Duelista', spectate: $('spec').checked, token: localStorage.getItem(tokenKey) }));
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.t === 'joined') localStorage.setItem(tokenKey, m.token);

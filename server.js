@@ -262,7 +262,7 @@ function evFor(room, e, viewerIdx, spec) {
 }
 // spec = espectador: vê o lado do jogador 0 embaixo, sem ver mãos nem cartas viradas de ninguém
 function view(room, p, spec = false) {
-  const a = spec ? room.players[0] : p, o = spec ? room.players[1] : other(room, p), own = !spec;
+  const a = spec ? (room.players[0] || newPlayer('', 'Aguardando jogador…', null)) : p, o = spec ? room.players[1] : other(room, p), own = !spec;
   const mons = (field, show) => field.map(m => !m ? null
     : (m.pos === 'set' && !show) ? { hidden: true, pos: 'set' }
     : { name: m.card.name, emoji: m.card.emoji, pos: m.pos, atk: m.atk, def: m.def, attacked: m.attacked, fresh: m.fresh, moved: m.moved, tributes: m.card.tributes });
@@ -288,7 +288,7 @@ function view(room, p, spec = false) {
 }
 function broadcast(room) {
   room.players.forEach(p => send(p, view(room, p)));
-  if (room.players.length === 2) room.spectators.forEach(sp => send(sp, view(room, sp, true)));
+  room.spectators.forEach(sp => send(sp, view(room, sp, true)));
 }
 
 // ---------- websocket ----------
@@ -306,7 +306,7 @@ wss.on('connection', ws => {
       const backS = msg.token && room.spectators.find(x => x.token === msg.token);
       if (backP) { player = backP; player.ws = ws; }
       else if (backS) { player = backS; player.ws = ws; spec = true; }
-      else if (room.players.length < 2) {
+      else if (room.players.length < 2 && !msg.spectate) {
         player = newPlayer(crypto.randomBytes(8).toString('hex'), name, ws);
         room.players.push(player);
         log(room, `${name} entrou na sala.`);
