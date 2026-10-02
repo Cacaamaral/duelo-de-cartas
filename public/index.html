@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Duelo de Cartas</title>
+<style>
+  :root{--bg:#16131f;--panel:#221d33;--line:#3b3357;--accent:#d97757;--gold:#f2b134;--txt:#f1ecff;--mut:#9a92b8;--good:#5fd38d;--bad:#ff6b6b}
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(ellipse at top,#2a2145,var(--bg));color:var(--txt);font-family:system-ui,sans-serif;min-height:100vh}
+  button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:8px 14px;background:var(--accent);color:#fff;font-weight:600}
+  button.sec{background:var(--line)} button:disabled{opacity:.4;cursor:default}
+  input{font:inherit;padding:10px;border-radius:8px;border:1px solid var(--line);background:#120f1b;color:var(--txt);width:100%}
+  .screen{max-width:420px;margin:12vh auto;padding:24px;background:var(--panel);border-radius:16px;text-align:center}
+  h1{margin:0 0 8px;color:var(--accent)}
+  #game{display:none;max-width:1000px;margin:0 auto;padding:10px;grid-template-columns:1fr 260px;gap:12px}
+  #board{display:flex;flex-direction:column;gap:6px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .banner{padding:6px 12px;border-radius:20px;background:var(--panel);font-weight:700}
+  .banner.me{background:var(--accent)}
+  .pl{display:flex;align-items:center;gap:10px;background:var(--panel);padding:6px 10px;border-radius:10px}
+  .lpbar{flex:1;height:14px;background:#120f1b;border-radius:7px;overflow:hidden}
+  .lpbar i{display:block;height:100%;background:linear-gradient(90deg,var(--good),var(--gold));transition:width .4s}
+  .field{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px;background:#120f1b66;border:1px solid var(--line);border-radius:12px}
+  .traps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 8px}
+  .slot{border:2px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;min-height:134px;position:relative}
+  .tslot{border:2px dashed #5b3a6b;border-radius:8px;display:flex;align-items:center;justify-content:center;min-height:50px}
+  .slot.hl,.tslot.hl{border-color:var(--gold);box-shadow:0 0 12px var(--gold);cursor:pointer}
+  .slot.chosen{border-color:var(--bad);box-shadow:0 0 12px var(--bad)}
+  .card{width:92px;height:128px;border-radius:8px;background:linear-gradient(160deg,#4a3b72,#2b2347);border:2px solid #6c5aa3;padding:4px;display:flex;flex-direction:column;align-items:center;font-size:11px;text-align:center;position:relative;transition:transform .15s;user-select:none}
+  .card.spell{background:linear-gradient(160deg,#1f6b5e,#16403d);border-color:#3fb89c}
+  .card.trap{background:linear-gradient(160deg,#7a2a62,#3d1535);border-color:#d05cb0}
+  .card .nm{font-weight:700;line-height:1.1;height:24px;display:flex;align-items:center}
+  .card .em{font-size:34px;flex:1;display:flex;align-items:center}
+  .card .st{font-weight:700;font-size:11px;width:100%;display:flex;justify-content:space-between}
+  .card .tx{font-size:9px;line-height:1.1;color:#f0e6f5}
+  .card .tr{position:absolute;top:-6px;right:-6px;background:var(--bad);border-radius:10px;font-size:10px;padding:1px 5px;font-weight:700}
+  .card .own{position:absolute;bottom:20px;left:0;right:0;font-size:9px;background:#000a;padding:1px}
+  .card.def{transform:rotate(90deg) scale(.85)}
+  .card.sel{outline:3px solid var(--gold);transform:translateY(-8px)}
+  .card.used{filter:grayscale(.7) brightness(.8)}
+  .card.back{background:repeating-linear-gradient(45deg,#3b2f63,#3b2f63 6px,#2b2347 6px,#2b2347 12px)}
+  .card.back .em{font-size:30px;opacity:.6}
+  .card.ghosted{visibility:hidden}
+  .mini{width:100%;height:46px;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;font-weight:700;background:linear-gradient(160deg,#7a2a62,#3d1535);border:2px solid #d05cb0;padding:0 4px;text-align:center;line-height:1.05}
+  .mini.back{background:repeating-linear-gradient(45deg,#4a2b58,#4a2b58 6px,#35203f 6px,#35203f 12px);border-color:#7a4a8a}
+  .mini.wait{opacity:.6}
+  .mini.ghosted{visibility:hidden}
+  .hand{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;min-height:134px}
+  .hand .card{cursor:pointer}
+  .oppHand{display:flex;gap:4px;justify-content:center;height:30px}
+  .oppHand .card{width:22px;height:30px;border-radius:3px}
+  .bar{background:var(--panel);border-radius:10px;padding:10px;min-height:56px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #side{display:flex;flex-direction:column;gap:8px}
+  #log{background:var(--panel);border-radius:10px;padding:8px;height:420px;overflow:auto;font-size:12px;line-height:1.35}
+  #log div{padding:2px 0;border-bottom:1px solid #ffffff10}
+  #err{color:var(--bad);min-height:18px;font-size:13px}
+  #over,#help{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:50;font-size:20px;text-align:center}
+  #over h1{font-size:48px}
+  #help .box{background:var(--panel);border-radius:14px;padding:18px 22px;max-width:520px;text-align:left;font-size:14px;line-height:1.5;max-height:90vh;overflow:auto}
+  /* animações */
+  .ghostw{position:fixed;z-index:30;pointer-events:none;width:fit-content}
+  .pt{position:fixed;z-index:40;width:8px;height:8px;border-radius:50%;pointer-events:none}
+  .float{position:fixed;z-index:45;font-weight:900;font-size:34px;pointer-events:none;text-shadow:0 2px 6px #000}
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:48;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:26px}
+  #fx .lbl{font-size:30px;font-weight:900;text-shadow:0 2px 8px #000;letter-spacing:2px}
+  #fx .card{transform:scale(1.9);margin:50px 0}
+  #turnb{position:fixed;left:0;right:0;top:40%;text-align:center;font-size:42px;font-weight:900;pointer-events:none;z-index:47;opacity:0;text-shadow:0 3px 10px #000}
+  @keyframes pop{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.25);opacity:1}100%{transform:scale(1)}}
+  @keyframes drawn{0%{transform:translateY(-90px) scale(.5);opacity:0}100%{transform:none;opacity:1}}
+  @keyframes glow{0%,100%{filter:none}50%{filter:brightness(2) drop-shadow(0 0 10px var(--gold))}}
+  .anim-pop{animation:pop .4s ease-out}
+  .anim-drawn{animation:drawn .3s ease-out}
+  .anim-glow{animation:glow .6s}
+  .shake{animation:shake .25s}
+  @keyframes shake{0%,100%{translate:0}25%{translate:-7px}75%{translate:7px}}
+  .card.def.anim-pop{animation:none}
+  @media(max-width:820px){#game{grid-template-columns:1fr}#log{height:150px}.card{width:76px;height:110px}.card .em{font-size:26px}.slot{min-height:116px}}
+</style>
+</head>
+<body>
+
+<div id="lobby" class="screen">
+  <h1>⚔️ Duelo de Cartas</h1>
+  <p id="lobbyTxt" style="color:var(--mut)">Escolha seu nome para entrar na sala.</p>
+  <input id="name" maxlength="16" placeholder="Seu nome" autofocus>
+  <p><button id="enter">Entrar</button></p>
+  <div id="err0" style="color:var(--bad)"></div>
+</div>
+
+<div id="game">
+  <div id="board">
+    <div class="top">
+      <span class="banner" id="turnBanner">…</span>
+      <span>
+        <button class="sec" id="helpBtn">❓ Regras</button>
+        <button class="sec" id="copy">📋 Copiar link</button>
+        <button class="sec" id="surr">🏳️ Desistir</button>
+      </span>
+    </div>
+    <div class="pl" id="oppPl"><b id="oppName">Oponente</b><div class="lpbar"><i id="oppBar"></i></div><b id="oppLp"></b><span id="oppInfo" style="color:var(--mut);font-size:12px"></span></div>
+    <div class="oppHand" id="oppHand"></div>
+    <div class="traps" id="oppTraps"></div>
+    <div class="field" id="oppField"></div>
+    <div class="field" id="myField"></div>
+    <div class="traps" id="myTraps"></div>
+    <div class="pl" id="myPl"><b id="myName">Você</b><div class="lpbar"><i id="myBar"></i></div><b id="myLp"></b><span id="myInfo" style="color:var(--mut);font-size:12px"></span></div>
+    <div class="hand" id="hand"></div>
+    <div class="bar" id="bar"></div>
+    <div id="err"></div>
+  </div>
+  <div id="side">
+    <div id="log"></div>
+    <div style="display:flex;gap:6px"><input id="chat" maxlength="120" placeholder="Chat…"><button id="send">↵</button></div>
+  </div>
+</div>
+
+<div id="over"><h1 id="overTitle"></h1><div id="overSub"></div><button id="rematch">Jogar de novo</button></div>
+<div id="help"><div class="box">
+  <h2 style="margin-top:0;color:var(--accent)">Regras</h2>
+  <b>Objetivo:</b> zerar os 8000 LP do oponente (ou ele ficar sem cartas).<br>
+  <b>Turno:</b> compra 1 carta (exceto no 1º turno de todos). Sem ataques no 1º turno.<br>
+  <b>Invocação:</b> 1 monstro por turno, em <b>ATAQUE</b> ou <b>baixado (virado para baixo, em defesa)</b>. O oponente não vê o monstro baixado até ele ser atacado ou virado.<br>
+  <b>Sacrifício:</b> monstros com 🔻 exigem sacrificar monstros seus: ATK 1800+ = 1, ATK 2500+ = 2.<br>
+  <b>Virar:</b> no turno seguinte, um monstro baixado pode virar para ataque. Os demais podem alternar ataque/defesa 1x por turno.<br>
+  <b>Combate:</b> ATK × ATK: o perdedor perde monstro e LP pela diferença. ATK × DEF: se o ATK for maior, o monstro em defesa é destruído sem dano; se for menor, o atacante perde LP pela diferença.<br>
+  <b>Ataque direto:</b> só se o oponente não tiver monstros.<br>
+  <b>Magias:</b> efeito imediato.<br>
+  <b>Armadilhas:</b> baixadas viradas para baixo (3 zonas). Ativam sozinhas no turno do oponente, a partir do turno seguinte ao que foram baixadas: espelho, barreira, chamas, fosso e selo arcano.
+  <p style="text-align:center"><button id="helpClose">Fechar</button></p>
+</div></div>
+<div id="fx"></div>
+<div id="turnb"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const START = 8000;
+const params = new URLSearchParams(location.search);
+let roomId = params.get('sala');
+if (!roomId) { roomId = Math.random().toString(36).slice(2, 8); history.replaceState(null, '', '?sala=' + roomId); }
+else $('lobbyTxt').textContent = 'Você foi convidado! Escolha seu nome. Se a sala já tiver 2 jogadores, você entra como espectador.';
+$('name').value = localStorage.getItem('nome') || '';
+const tokenKey = 'token_' + roomId;
+
+let ws, S = null, sel = null, mode = null;
+let lastSeq = -1, animating = false, queue = [], lpShown = { you: START, opp: START };
+const hide = new Set();   // 'm:you:1' / 't:opp:0' -> carta oculta até o evento dela tocar
+const ghosts = {};        // 'you:1' -> elemento fantasma usado nas animações
+
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'join', room: roomId, name: $('name').value.trim() || 'Duelista', token: localStorage.getItem(tokenKey) }));
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'joined') localStorage.setItem(tokenKey, m.token);
+    else if (m.t === 'error') { if (m.fatal) { $('err0').textContent = m.msg; $('lobby').style.display = ''; $('game').style.display = 'none'; } else flash(m.msg); }
+    else if (m.t === 'state') onState(m);
+  };
+  ws.onclose = () => { flash('Conexão perdida. Reconectando…'); setTimeout(() => { if (S) connect(); }, 1500); };
+}
+const tx = o => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+function flash(t) { $('err').textContent = t; clearTimeout(flash.t); flash.t = setTimeout(() => $('err').textContent = '', 3500); }
+
+$('enter').onclick = () => {
+  const n = $('name').value.trim(); if (!n) return;
+  localStorage.setItem('nome', n);
+  $('lobby').style.display = 'none'; $('game').style.display = 'grid';
+  connect();
+};
+$('name').onkeydown = e => { if (e.key === 'Enter') $('enter').click(); };
+$('copy').onclick = () => { navigator.clipboard.writeText(location.href).then(() => flash('Link copiado! Mande para seu amigo.')); };
+$('surr').onclick = () => confirm('Desistir do duelo?') && tx({ t: 'surrender' });
+$('send').onclick = () => { const v = $('chat').value.trim(); if (v) tx({ t: 'chat', text: v }); $('chat').value = ''; };
+$('chat').onkeydown = e => { if (e.key === 'Enter') $('send').click(); };
+$('rematch').onclick = () => { tx({ t: 'rematch' }); $('rematch').disabled = true; };
+$('helpBtn').onclick = () => $('help').style.display = 'flex';
+$('helpClose').onclick = () => $('help').style.display = 'none';
+
+function onState(m) {
+  const prev = S; S = m;
+  if (!prev) { lastSeq = m.seq; lpShown = { you: m.you.lp, opp: m.opp ? m.opp.lp : START }; render(); return; }
+  if (m.seq > lastSeq && m.events.length) {
+    lastSeq = m.seq;
+    if (!animating) lpShown = { you: prev.you.lp, opp: prev.opp ? prev.opp.lp : START };
+    m.events.forEach(e => {
+      if (e.type === 'summon' || e.type === 'setmon') hide.add(`m:${e.who}:${e.slot}`);
+      if (e.type === 'settrap') hide.add(`t:${e.who}:${e.slot}`);
+    });
+    queue.push(...m.events);
+    render();
+    if (!animating) runQueue();
+  } else { if (m.seq > lastSeq) lastSeq = m.seq; render(); }
+}
+
+// ---------- render ----------
+function cardEl(c, o = {}) {
+  const d = document.createElement('div');
+  if (o.back || c.hidden) { d.className = 'card back' + (o.def ? ' def' : ''); d.innerHTML = '<div class="em">🂠</div>'; return d; }
+  d.className = 'card' + (c.type === 'spell' ? ' spell' : c.type === 'trap' ? ' trap' : '') + (o.def ? ' def' : '') + (o.sel ? ' sel' : '') + (o.used ? ' used' : '');
+  d.innerHTML = `<div class="nm">${c.name}</div><div class="em">${c.emoji}</div>` +
+    (c.type === 'monster' ? `<div class="st"><span>⚔${c.atk}</span><span>🛡${c.def}</span></div>` : `<div class="tx">${c.text}</div>`) +
+    (c.tributes ? `<span class="tr" title="Sacrifique ${c.tributes} monstro(s)">🔻${c.tributes}</span>` : '') +
+    (o.setown ? '<div class="own">virada ↓</div>' : '');
+  d.title = c.type === 'monster' ? `${c.name} — ATK ${c.atk} / DEF ${c.def}${c.tributes ? ` — sacrifique ${c.tributes}` : ''}` : c.text;
+  return d;
+}
+function mkSlot(cls, side, zone, i) {
+  const s = document.createElement('div'); s.className = cls;
+  s.dataset.side = side; s.dataset.zone = zone; s.dataset.slot = i;
+  s.onclick = () => slotClick(side, zone, i);
+  return s;
+}
+function renderField(el, field, side) {
+  el.innerHTML = '';
+  field.forEach((m, i) => {
+    const s = mkSlot('slot', side, 'mon', i), mine = side === 'you';
+    if (mode) {
+      const t = mode.type;
+      if (mine && ((t === 'summon' && !m) || (t === 'tribute' && m) || (t === 'spell' && mode.target === 'ally' && m))) s.classList.add('hl');
+      if (!mine && m && ((t === 'attack') || (t === 'spell' && mode.target === 'enemy'))) s.classList.add('hl');
+      if (t === 'tribute' && mine && mode.chosen.includes(i)) s.classList.add('chosen');
+    }
+    if (m) {
+      const c = m.hidden ? cardEl({ hidden: true }, { def: true })
+        : cardEl({ type: 'monster', ...m }, { def: m.pos !== 'atk', setown: mine && m.pos === 'set', sel: mine && sel && sel.kind === 'field' && sel.slot === i, used: m.attacked });
+      if (hide.has(`m:${side}:${i}`)) c.classList.add('ghosted');
+      s.appendChild(c);
+    }
+    el.appendChild(s);
+  });
+}
+function renderTraps(el, traps, side) {
+  el.innerHTML = '';
+  traps.forEach((t, i) => {
+    const s = mkSlot('tslot', side, 'trap', i);
+    if (mode && ((side === 'you' && !t && mode.type === 'settrap') || (side === 'opp' && t && mode.type === 'spell' && mode.target === 'enemyTrap'))) s.classList.add('hl');
+    if (t) {
+      const m = document.createElement('div');
+      if (t.hidden) { m.className = 'mini back'; m.textContent = '🪤'; }
+      else { m.className = 'mini' + (t.ready ? '' : ' wait'); m.textContent = `${t.emoji} ${t.name}`; m.title = t.text + (t.ready ? '' : ' (ativa a partir do próximo turno)'); }
+      if (hide.has(`t:${side}:${i}`)) m.classList.add('ghosted');
+      s.appendChild(m);
+    }
+    el.appendChild(s);
+  });
+}
+function renderLp() {
+  const L = animating ? lpShown : { you: S.you.lp, opp: S.opp ? S.opp.lp : START };
+  $('myLp').textContent = L.you; $('myBar').style.width = Math.max(0, Math.min(100, L.you / 80)) + '%';
+  $('oppLp').textContent = S.opp ? L.opp : ''; $('oppBar').style.width = S.opp ? Math.max(0, Math.min(100, L.opp / 80)) + '%' : '0';
+}
+function render() {
+  if (!S) return;
+  const { you, opp } = S;
+  $('oppName').textContent = opp ? opp.name + (opp.online ? '' : ' (offline)') : 'Aguardando amigo…';
+  $('oppInfo').textContent = opp ? `deck ${opp.deck} · cemitério ${opp.gy}` : '';
+  $('myName').textContent = you.name;
+  $('myInfo').textContent = `deck ${you.deck} · cemitério ${you.gy}`;
+  renderLp();
+  $('oppHand').innerHTML = opp ? '<div class="card back"></div>'.repeat(opp.hand) : '';
+  const none = [null, null, null];
+  renderTraps($('oppTraps'), opp ? opp.traps : none, 'opp');
+  renderField($('oppField'), opp ? opp.field : none, 'opp');
+  renderField($('myField'), you.field, 'you');
+  renderTraps($('myTraps'), you.traps, 'you');
+
+  $('hand').innerHTML = '';
+  you.hand.forEach((c, i) => {
+    const e = cardEl(c, { sel: sel && sel.kind === 'hand' && sel.i === i });
+    if (S.spectator) { $('hand').appendChild(e); return; }
+    e.onclick = () => { if (!S.myTurn) return; sel = { kind: 'hand', i }; mode = null; render(); };
+    $('hand').appendChild(e);
+  });
+
+  const tb = $('turnBanner');
+  const eyes = S.spectators ? `  👁 ${S.spectators}` : '';
+  if (S.spectator) { tb.textContent = (S.started ? `👁 Assistindo — vez de ${S.turnName} (turno ${S.turnNo})` : '👁 Assistindo') + eyes; tb.className = 'banner'; }
+  else if (!S.started) { tb.textContent = '⏳ Aguardando seu amigo entrar (mande o link)' + eyes; tb.className = 'banner'; }
+  else { tb.textContent = (S.myTurn ? `🟢 Seu turno (${S.turnNo})` : `🔴 Turno do oponente (${S.turnNo})`) + eyes; tb.className = 'banner' + (S.myTurn ? ' me' : ''); }
+
+  $('log').innerHTML = S.log.map(l => `<div>${l.replace(/</g, '&lt;')}</div>`).join('');
+  $('log').scrollTop = 1e6;
+  renderBar();
+
+  const showOver = S.over && !animating;
+  $('over').style.display = showOver ? 'flex' : 'none';
+  if (showOver) {
+    $('overTitle').textContent = S.spectator ? `🏆 ${S.winnerName} venceu!` : S.winner === 'you' ? '🏆 VITÓRIA!' : '💀 DERROTA';
+    $('overSub').textContent = S.spectator ? 'Aguardando os jogadores…' : S.oppRematch ? 'Seu amigo quer revanche!' : '';
+    $('rematch').style.display = S.spectator ? 'none' : '';
+    $('rematch').disabled = S.rematch; $('rematch').textContent = S.rematch ? 'Aguardando oponente…' : 'Jogar de novo';
+    sel = mode = null;
+  }
+}
+function btn(label, fn, cls) { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; $('bar').appendChild(b); return b; }
+function startSummon(pos) {
+  const c = S.you.hand[sel.i], need = c.tributes || 0;
+  mode = need ? { type: 'tribute', i: sel.i, pos, need, chosen: [] } : { type: 'summon', i: sel.i, pos };
+  render();
+}
+function renderBar() {
+  const bar = $('bar'); bar.innerHTML = '';
+  if (S.spectator) { bar.textContent = 'Você está assistindo. Pode usar o chat.'; return; }
+  if (!S.started || S.over) { bar.textContent = S.started ? '' : 'Compartilhe o link da sala com seu amigo.'; return; }
+  if (!S.myTurn) { bar.textContent = 'Aguarde o oponente jogar…'; return; }
+  const I = S.you;
+  if (mode) {
+    const hints = {
+      summon: 'Clique em uma zona de monstro vazia.',
+      tribute: `Escolha ${mode.need} monstro(s) seu(s) para sacrificar (${mode.chosen ? mode.chosen.length : 0}/${mode.need}).`,
+      settrap: 'Clique em uma zona de armadilha vazia.',
+      attack: 'Clique em um monstro inimigo para atacar.',
+      spell: { enemy: 'Clique em um monstro inimigo.', ally: 'Clique em um monstro seu.', enemyTrap: 'Clique em uma armadilha inimiga.' }[mode.target],
+    };
+    bar.append(hints[mode.type] + ' ');
+    if (mode.type === 'attack' && S.opp && !S.opp.field.some(Boolean)) btn('💥 Ataque direto', () => { tx({ t: 'attack', slot: mode.slot, target: 'direct' }); clear(); });
+    btn('Cancelar', clear, 'sec');
+  } else if (sel && sel.kind === 'hand') {
+    const c = I.hand[sel.i];
+    if (!c) { sel = null; return renderBar(); }
+    if (c.type === 'monster') {
+      const own = I.field.filter(Boolean).length, need = c.tributes || 0;
+      bar.append(`${c.name}${need ? ` (sacrifica ${need})` : ''}: `);
+      const noTrib = own < need;
+      btn('Invocar em ATAQUE', () => startSummon('atk')).disabled = S.summoned || noTrib;
+      btn('Baixar (virado)', () => startSummon('set')).disabled = S.summoned || noTrib;
+      if (S.summoned) bar.append(' (já invocou neste turno)');
+      else if (noTrib) bar.append(` (precisa de ${need} monstro(s) seu(s) em campo)`);
+    } else if (c.type === 'trap') {
+      bar.append(`${c.name}: ${c.text} `);
+      btn('Baixar armadilha', () => { mode = { type: 'settrap', i: sel.i }; render(); }).disabled = I.traps.every(Boolean);
+    } else {
+      bar.append(`${c.name}: ${c.text} `);
+      btn('Usar', () => { if (c.target) { mode = { type: 'spell', i: sel.i, target: c.target }; render(); } else { tx({ t: 'spell', hand: sel.i }); clear(); } });
+    }
+  } else if (sel && sel.kind === 'field') {
+    const m = I.field[sel.slot];
+    if (!m) { sel = null; return renderBar(); }
+    bar.append(`${m.name || 'Monstro'}: `);
+    btn('Atacar', () => { mode = { type: 'attack', slot: sel.slot }; render(); }).disabled = m.pos !== 'atk' || m.attacked || S.turnNo === 1;
+    btn(m.pos === 'set' ? 'Virar p/ ataque' : 'Mudar posição', () => { tx({ t: 'pos', slot: sel.slot }); clear(); }, 'sec').disabled = m.fresh || m.moved || m.attacked;
+    if (S.turnNo === 1) bar.append(' (sem ataques no 1º turno)');
+  } else bar.append('Selecione uma carta da mão ou um monstro seu.');
+  btn('Encerrar turno ▶', () => { tx({ t: 'end' }); clear(); }, 'sec').style.marginLeft = 'auto';
+}
+function clear() { sel = mode = null; render(); }
+function slotClick(side, zone, i) {
+  if (!S || !S.myTurn || S.over) return;
+  const mine = side === 'you';
+  const m = zone === 'mon' ? (mine ? S.you.field : S.opp.field)[i] : (mine ? S.you.traps : S.opp.traps)[i];
+  if (mode) {
+    const t = mode.type;
+    if (t === 'summon' && mine && zone === 'mon' && !m) { tx({ t: 'summon', hand: mode.i, slot: i, pos: mode.pos, tributes: [] }); return clear(); }
+    if (t === 'tribute' && mine && zone === 'mon' && m) {
+      const k = mode.chosen.indexOf(i);
+      if (k >= 0) mode.chosen.splice(k, 1); else mode.chosen.push(i);
+      if (mode.chosen.length === mode.need) { tx({ t: 'summon', hand: mode.i, slot: mode.chosen[0], pos: mode.pos, tributes: mode.chosen }); return clear(); }
+      return render();
+    }
+    if (t === 'settrap' && mine && zone === 'trap' && !m) { tx({ t: 'trap', hand: mode.i, slot: i }); return clear(); }
+    if (t === 'attack' && !mine && zone === 'mon' && m) { tx({ t: 'attack', slot: mode.slot, target: i }); return clear(); }
+    if (t === 'spell') {
+      const ok = (mode.target === 'enemy' && !mine && zone === 'mon') || (mode.target === 'ally' && mine && zone === 'mon') || (mode.target === 'enemyTrap' && !mine && zone === 'trap');
+      if (ok && m) { tx({ t: 'spell', hand: mode.i, slot: i }); return clear(); }
+    }
+    return;
+  }
+  if (mine && zone === 'mon' && m) { sel = { kind: 'field', slot: i }; render(); }
+}
+
+// ---------- animações ----------
+const slotEl = (zone, side, i) => document.querySelector(`[data-zone="${zone}"][data-side="${side}"][data-slot="${i}"]`);
+const rectOf = (zone, side, i) => { const el = slotEl(zone, side, i); return el && el.getBoundingClientRect(); };
+const anim = (el, cls, ms) => { if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(() => el.classList.remove(cls), ms); };
+const wait = (a, ms) => a.finished.then(() => sleep(ms || 0)).catch(() => {});
+
+function makeGhost(key, snap, rect, back) {
+  killGhost(key);
+  const w = document.createElement('div'); w.className = 'ghostw';
+  const gi = document.createElement('div'); gi.className = 'gi';
+  gi.appendChild(cardEl(snap, { back, def: snap.pos === 'def' || snap.pos === 'set' }));
+  w.appendChild(gi); document.body.appendChild(w);
+  w._cx = rect.left + rect.width / 2; w._cy = rect.top + rect.height / 2;
+  w.style.left = (w._cx - w.offsetWidth / 2) + 'px'; w.style.top = (w._cy - w.offsetHeight / 2) + 'px';
+  ghosts[key] = w; return w;
+}
+function killGhost(key) { if (ghosts[key]) { ghosts[key].remove(); delete ghosts[key]; } }
+function particles(cx, cy, color) {
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('div'); p.className = 'pt'; p.style.background = color || '#f2b134';
+    p.style.left = cx + 'px'; p.style.top = cy + 'px'; document.body.appendChild(p);
+    const a = Math.random() * 6.28, d = 40 + Math.random() * 60;
+    p.animate([{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px)`, opacity: 0 }], { duration: 500 + Math.random() * 200 }).finished.then(() => p.remove());
+  }
+}
+async function explode(w) {
+  particles(w._cx, w._cy, '#ff9a4d');
+  const gi = w.firstChild;
+  await gi.animate([{ transform: 'scale(1)', opacity: 1, filter: 'brightness(1)' }, { transform: 'scale(1.25)', opacity: 1, filter: 'brightness(3)', offset: .3 }, { transform: 'scale(.2) rotate(40deg)', opacity: 0 }], { duration: 500 }).finished.catch(() => {});
+  w.remove();
+}
+async function lunge(w, rect, frac) {
+  const dx = (rect.left + rect.width / 2 - w._cx) * frac, dy = (rect.top + rect.height / 2 - w._cy) * frac;
+  w.style.zIndex = 35; w._off = [dx, dy];
+  await w.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${dx}px,${dy}px)` }], { duration: 300, easing: 'ease-in' }).finished.catch(() => {});
+  w.style.transform = `translate(${dx}px,${dy}px)`;
+}
+async function endGhosts() {
+  const list = Object.entries(ghosts);
+  await Promise.all(list.map(async ([key, w]) => {
+    if (w._off) { await w.animate([{ transform: `translate(${w._off[0]}px,${w._off[1]}px)` }, { transform: 'translate(0,0)' }], { duration: 250 }).finished.catch(() => {}); }
+    w.remove(); delete ghosts[key]; hide.delete('m:' + key);
+  }));
+  if (list.length) render();
+}
+function floatText(el, text, color) {
+  const r = el.getBoundingClientRect(), f = document.createElement('div'); f.className = 'float'; f.textContent = text; f.style.color = color;
+  f.style.left = (r.left + r.width / 2 - 40) + 'px'; f.style.top = (r.top - 10) + 'px'; document.body.appendChild(f);
+  f.animate([{ transform: 'translateY(0) scale(.6)', opacity: 0 }, { transform: 'translateY(-20px) scale(1.2)', opacity: 1, offset: .25 }, { transform: 'translateY(-70px) scale(1)', opacity: 0 }], { duration: 1000 }).finished.then(() => f.remove());
+}
+async function bigCard(snap, label, color, flipFromBack) {
+  const fx = $('fx'); fx.innerHTML = '';
+  const l = document.createElement('div'); l.className = 'lbl'; l.style.color = color; l.textContent = label;
+  let c = cardEl(snap, { back: flipFromBack });
+  fx.append(l, c);
+  c.animate([{ opacity: 0, scale: '.3' }, { opacity: 1, scale: '1' }], { duration: 250 });
+  if (flipFromBack) {
+    await sleep(450);
+    const n = cardEl(snap); c.replaceWith(n); c = n;
+    await c.animate([{ rotate: 'y 90deg' }, { rotate: 'y 0deg' }], { duration: 250 }).finished.catch(() => {});
+    await sleep(750);
+  } else await sleep(850);
+  await fx.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 }).finished.catch(() => {});
+  fx.innerHTML = '';
+}
+async function banner(text, color) {
+  const b = $('turnb'); b.textContent = text; b.style.color = color;
+  await b.animate([{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1)', offset: .25 }, { opacity: 1, offset: .75 }, { opacity: 0, transform: 'scale(1.2)' }], { duration: 850 }).finished.catch(() => {});
+}
+
+async function playEvent(e) {
+  const foe = e.who === 'you' ? 'opp' : 'you';
+  switch (e.type) {
+    case 'turn': return banner(e.who === 'you' ? 'SEU TURNO' : 'TURNO DO OPONENTE', e.who === 'you' ? '#f2b134' : '#9a92b8');
+    case 'draw': {
+      if (e.who === 'you') { const k = $('hand').lastElementChild; anim(k, 'anim-drawn', 300); } else anim($('oppHand').lastElementChild, 'anim-drawn', 300);
+      return sleep(250);
+    }
+    case 'summon': case 'setmon': {
+      const key = `${e.who}:${e.slot}`; hide.delete('m:' + key); render();
+      const real = slotEl('mon', e.who, e.slot);
+      const c = real && real.firstChild;
+      if (c) anim(c, 'anim-pop', 450);
+      else { const g = makeGhost(key, e.card || { hidden: true }, rectOf('mon', e.who, e.slot), !e.card && e.who === 'opp'); g.firstChild.animate([{ transform: 'scale(.2)', opacity: 0 }, { transform: 'scale(1.2)', opacity: 1, offset: .6 }, { transform: 'scale(1)' }], { duration: 400 }); }
+      return sleep(450);
+    }
+    case 'settrap': {
+      hide.delete(`t:${e.who}:${e.slot}`); render();
+      const s = slotEl('trap', e.who, e.slot); anim(s && s.firstChild, 'anim-pop', 450);
+      return sleep(400);
+    }
+    case 'flip': {
+      const key = `${e.who}:${e.slot}`, g = ghosts[key];
+      if (g) { g.firstChild.replaceChildren(cardEl(e.card, { def: true })); g.firstChild.animate([{ rotate: 'y 90deg' }, { rotate: 'y 0deg' }], { duration: 300 }); }
+      else { const s = slotEl('mon', e.who, e.slot); anim(s && s.firstChild, 'anim-glow', 600); }
+      return sleep(500);
+    }
+    case 'boost': { const s = slotEl('mon', e.who, e.slot); anim(s && s.firstChild, 'anim-glow', 600); particles(...(c => [c.left + c.width / 2, c.top + c.height / 2])(s.getBoundingClientRect()), '#5fd38d'); return sleep(600); }
+    case 'attack': {
+      const aKey = `${e.who}:${e.from}`; hide.add('m:' + aKey);
+      let tRect, tKey = null;
+      if (e.to === 'direct') tRect = $(foe === 'opp' ? 'oppPl' : 'myPl').getBoundingClientRect();
+      else { tKey = `${foe}:${e.to}`; hide.add('m:' + tKey); tRect = rectOf('mon', foe, e.to); }
+      render();
+      const a = makeGhost(aKey, e.atk, rectOf('mon', e.who, e.from));
+      if (tKey) makeGhost(tKey, e.tgt, tRect, e.tgtSet);
+      await lunge(a, tRect, tKey ? .8 : .7);
+      const tgtEl = tKey ? ghosts[tKey] : $(foe === 'opp' ? 'oppPl' : 'myPl');
+      if (tgtEl) anim(tgtEl, 'shake', 260);
+      return sleep(200);
+    }
+    case 'attackEnd': return endGhosts();
+    case 'destroy': {
+      const key = `${e.who}:${e.slot}`;
+      if (e.zone === 'trap') { const r = rectOf('trap', e.who, e.slot); if (!r) return; const g = makeGhost('t' + key, { ...e.card }, r); await explode(g); delete ghosts['t' + key]; return; }
+      const g = ghosts[key] || makeGhost(key, e.card, rectOf('mon', e.who, e.slot));
+      await explode(g); delete ghosts[key]; hide.delete('m:' + key); return;
+    }
+    case 'trap': {
+      hide.delete(`t:${e.who}:${e.slot}`);
+      const s = slotEl('trap', e.who, e.slot); anim(s, 'shake', 260);
+      return bigCard(e.card, e.who === 'you' ? 'SUA ARMADILHA!' : 'ARMADILHA ATIVADA!', '#d05cb0', true);
+    }
+    case 'spell': return bigCard(e.card, e.who === 'you' ? 'VOCÊ USOU' : 'OPONENTE USOU', '#3fb89c', false);
+    case 'lp': {
+      lpShown[e.who] = Math.max(0, lpShown[e.who] + e.delta); renderLp();
+      const pl = $(e.who === 'you' ? 'myPl' : 'oppPl');
+      floatText(pl, (e.delta > 0 ? '+' : '') + e.delta, e.delta > 0 ? '#5fd38d' : '#ff6b6b');
+      if (e.delta < 0) anim(pl, 'shake', 260);
+      return sleep(550);
+    }
+  }
+}
+async function runQueue() {
+  animating = true;
+  while (queue.length) {
+    const e = queue.shift();
+    try { await playEvent(e); } catch (err) { console.error(err); }
+  }
+  try { await endGhosts(); } catch (err) {}
+  Object.keys(ghosts).forEach(killGhost);
+  hide.clear(); $('fx').innerHTML = '';
+  animating = false;
+  render();
+}
+</script>
+</body>
+</html>

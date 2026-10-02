@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: duelo-de-cartas
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
